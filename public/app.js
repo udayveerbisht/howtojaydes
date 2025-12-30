@@ -3,27 +3,23 @@ const $ = (id) => document.getElementById(id);
 const out = $("out");
 const copyBtn = $("btn_copy");
 
-// tabs
 const tabGen = $("tab_gen");
 const tabRewrite = $("tab_rewrite");
 
 const panelGen = $("panel_gen");
 const panelRewrite = $("panel_rewrite");
 
-// gen
 const promptGen = $("prompt_gen");
 const btnGenerate = $("btn_generate");
 const btnCancel = $("btn_cancel");
 const status = $("status");
 
-// rewrite
 const lyricsIn = $("lyrics_in");
 const promptRewrite = $("prompt_rewrite");
 const btnRewrite = $("btn_rewrite");
 const btnCancel2 = $("btn_cancel_2");
 const status2 = $("status2");
 
-// abort control
 let activeController = null;
 let mode = "gen";
 
@@ -109,7 +105,6 @@ copyBtn.addEventListener("click", async () => {
     setTimeout(() => (copyBtn.textContent = "copy"), 900);
 });
 
-// generate
 btnGenerate.addEventListener("click", async () => {
     const prompt = (promptGen.value || "").trim();
     if (!prompt) return (status.textContent = "type a prompt");
@@ -139,7 +134,6 @@ btnGenerate.addEventListener("click", async () => {
     }
 });
 
-// rewrite
 btnRewrite.addEventListener("click", async () => {
     const lyrics = (lyricsIn.value || "").trim();
     const prompt = (promptRewrite.value || "").trim();
@@ -170,6 +164,5 @@ btnRewrite.addEventListener("click", async () => {
     }
 });
 
-// init
 setTab("gen");
 setBusy(false);
