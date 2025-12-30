@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>howtojaydes</title>
@@ -9,111 +8,135 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ["Space Grotesk", "ui-sans-serif", "system-ui"] },
-                    colors: {
-                        heat: "#ff1a3d",
-                        heat2: "#ff2d55",
-                    },
-                },
-            },
-        };
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Space Grotesk", "ui-sans-serif", "system-ui"] },
+            colors: { heat: "#ff1a3d", heat2: "#ff2d55" },
+          },
+        },
+      };
     </script>
-</head>
+  </head>
 
-<body class="min-h-screen bg-[#07060a] text-white font-sans">
-    <div class="pointer-events-none fixed inset-0 opacity-90" style="background:
-      radial-gradient(900px 420px at 18% 10%, rgba(255,26,61,.42), transparent 60%),
-      radial-gradient(900px 420px at 82% 0%, rgba(255,45,85,.24), transparent 55%),
-      radial-gradient(900px 520px at 60% 100%, rgba(255,26,61,.20), transparent 55%);"></div>
+  <body class="min-h-screen bg-[#07060a] text-white font-sans">
+    <div
+      class="pointer-events-none fixed inset-0 opacity-90"
+      style="background:
+        radial-gradient(900px 420px at 18% 10%, rgba(255,26,61,.42), transparent 60%),
+        radial-gradient(900px 420px at 82% 0%, rgba(255,45,85,.24), transparent 55%),
+        radial-gradient(900px 520px at 60% 100%, rgba(255,26,61,.20), transparent 55%);"
+    ></div>
 
     <main class="relative mx-auto max-w-3xl px-4 py-10 sm:py-14">
-        <header class="flex flex-col gap-2">
-            <h1 class="text-4xl sm:text-5xl font-medium tracking-tight">howtojaydes</h1>
-            <p class="text-sm text-white/60">ghost writer trained on jaydes</p>
-        </header>
+      <header class="flex flex-col gap-2">
+        <h1 class="text-4xl sm:text-5xl font-medium tracking-tight">howtojaydes</h1>
+        <p class="text-sm text-white/60">ghost writer trained on jaydes</p>
+      </header>
 
-        <section
-            class="mt-8 rounded-3xl border border-heat/18 bg-white/[0.03] p-5 sm:p-6 shadow-[0_0_0_1px_rgba(255,26,61,0.14)]">
-            <div class="flex items-center justify-between gap-3">
-                <div class="inline-flex rounded-full bg-white/5 p-1 border border-heat/12">
-                    <button id="tab_gen" class="tab-btn rounded-full px-4 py-2 text-xs font-medium bg-white/10">
-                        make lyrics
-                    </button>
-                    <button id="tab_rewrite"
-                        class="tab-btn rounded-full px-4 py-2 text-xs font-medium text-white/70 hover:text-white">
-                        rewrite lyrics
-                    </button>
-                </div>
-            </div>
+      <section class="mt-8 rounded-3xl border border-heat/18 bg-white/[0.03] p-5 sm:p-6 shadow-[0_0_0_1px_rgba(255,26,61,0.14)]">
+        <div class="flex items-center justify-between gap-3">
+          <div class="inline-flex rounded-full bg-white/5 p-1 border border-heat/12">
+            <button id="tab_gen" class="rounded-full px-4 py-2 text-xs font-medium bg-white/10">make lyrics</button>
+            <button id="tab_rewrite" class="rounded-full px-4 py-2 text-xs font-medium text-white/70 hover:text-white">rewrite lyrics</button>
+            <button id="tab_use" class="rounded-full px-4 py-2 text-xs font-medium text-white/70 hover:text-white">use lyrics</button>
+          </div>
+        </div>
 
-            <!-- make -->
-            <div id="panel_gen" class="mt-5 space-y-3">
-                <label class="block text-xs text-white/70">prompt</label>
-                <textarea id="prompt_gen" maxlength="1200" rows="6"
-                    class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
-                    placeholder="type a prompt"></textarea>
+        <div id="panel_gen" class="mt-5 space-y-3">
+          <label class="block text-xs text-white/70">prompt</label>
+          <textarea
+            id="prompt_gen"
+            maxlength="1200"
+            rows="6"
+            class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
+            placeholder="type a prompt"
+          ></textarea>
 
-                <div class="flex flex-wrap items-center gap-2 pt-1">
-                    <button id="btn_generate"
-                        class="rounded-2xl px-5 py-2.5 text-sm font-medium bg-heat/24 hover:bg-heat/36 border border-heat/30 transition">
-                        generate
-                    </button>
-                    <button id="btn_cancel"
-                        class="hidden rounded-2xl px-5 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 border border-heat/12 transition">
-                        cancel
-                    </button>
-                    <div id="status" class="text-xs text-white/50"></div>
-                </div>
-            </div>
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button id="btn_generate" class="rounded-2xl px-5 py-2.5 text-sm font-medium bg-heat/24 hover:bg-heat/36 border border-heat/30 transition">generate</button>
+            <button id="btn_cancel" class="hidden rounded-2xl px-5 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 border border-heat/12 transition">cancel</button>
+            <div id="status" class="text-xs text-white/50"></div>
+          </div>
+        </div>
 
-            <!-- rewrite -->
-            <div id="panel_rewrite" class="mt-5 space-y-3 hidden">
-                <label class="block text-xs text-white/70">lyrics</label>
-                <textarea id="lyrics_in" maxlength="9000" rows="7"
-                    class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
-                    placeholder="paste lyrics"></textarea>
+        <div id="panel_rewrite" class="mt-5 space-y-3 hidden">
+          <label class="block text-xs text-white/70">lyrics</label>
+          <textarea
+            id="lyrics_in"
+            maxlength="9000"
+            rows="7"
+            class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
+            placeholder="paste lyrics"
+          ></textarea>
 
-                <label class="block text-xs text-white/70">prompt (optional)</label>
-                <textarea id="prompt_rewrite" maxlength="1200" rows="4"
-                    class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
-                    placeholder="type a prompt"></textarea>
+          <label class="block text-xs text-white/70">prompt (optional)</label>
+          <textarea
+            id="prompt_rewrite"
+            maxlength="1200"
+            rows="4"
+            class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
+            placeholder="type a prompt"
+          ></textarea>
 
-                <div class="flex flex-wrap items-center gap-2 pt-1">
-                    <button id="btn_rewrite"
-                        class="rounded-2xl px-5 py-2.5 text-sm font-medium bg-heat/24 hover:bg-heat/36 border border-heat/30 transition">
-                        rewrite
-                    </button>
-                    <button id="btn_cancel_2"
-                        class="hidden rounded-2xl px-5 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 border border-heat/12 transition">
-                        cancel
-                    </button>
-                    <div id="status2" class="text-xs text-white/50"></div>
-                </div>
-            </div>
-        </section>
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button id="btn_rewrite" class="rounded-2xl px-5 py-2.5 text-sm font-medium bg-heat/24 hover:bg-heat/36 border border-heat/30 transition">rewrite</button>
+            <button id="btn_cancel_2" class="hidden rounded-2xl px-5 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 border border-heat/12 transition">cancel</button>
+            <div id="status2" class="text-xs text-white/50"></div>
+          </div>
+        </div>
 
-        <section class="mt-6 rounded-3xl border border-heat/12 bg-white/[0.02] p-5 sm:p-6">
-            <div class="flex items-center justify-between gap-3">
-                <h2 class="text-sm text-white/70">output</h2>
-                <button id="btn_copy"
-                    class="rounded-xl px-3 py-2 text-xs font-medium bg-white/5 hover:bg-white/10 border border-heat/12 transition">
-                    copy
-                </button>
-            </div>
+        <div id="panel_use" class="mt-5 space-y-3 hidden">
+          <label class="block text-xs text-white/70">lyrics</label>
+          <textarea
+            id="lyrics_use"
+            maxlength="9000"
+            rows="7"
+            class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
+            placeholder="paste lyrics you want to perform"
+          ></textarea>
 
-            <pre id="out"
-                class="mt-3 min-h-[220px] whitespace-pre-wrap break-words rounded-2xl bg-black/35 border border-heat/12 p-4 text-sm text-white/90"></pre>
-        </section>
+          <label class="block text-xs text-white/70">prompt (optional)</label>
+          <textarea
+            id="prompt_use"
+            maxlength="1200"
+            rows="4"
+            class="w-full rounded-2xl bg-black/40 border border-heat/12 focus:border-heat/50 outline-none px-4 py-3 text-sm text-white/90 placeholder:text-white/30"
+            placeholder="ex: make it more aggressive / more soft / faster pocket"
+          ></textarea>
+
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button id="btn_use" class="rounded-2xl px-5 py-2.5 text-sm font-medium bg-heat/24 hover:bg-heat/36 border border-heat/30 transition">coach me</button>
+            <button id="btn_cancel_3" class="hidden rounded-2xl px-5 py-2.5 text-sm font-medium bg-white/5 hover:bg-white/10 border border-heat/12 transition">cancel</button>
+            <div id="status3" class="text-xs text-white/50"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-6 rounded-3xl border border-heat/12 bg-white/[0.02] p-5 sm:p-6">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm text-white/70">output</h2>
+          <button id="btn_copy" class="rounded-xl px-3 py-2 text-xs font-medium bg-white/5 hover:bg-white/10 border border-heat/12 transition">copy</button>
+        </div>
+
+        <pre
+          id="out_text"
+          class="mt-3 min-h-[220px] whitespace-pre-wrap break-words rounded-2xl bg-black/35 border border-heat/12 p-4 text-sm text-white/90"
+        ></pre>
+
+        <div
+          id="out_md"
+          class="hidden mt-3 min-h-[220px] rounded-2xl bg-black/35 border border-heat/12 p-4 text-sm text-white/90 leading-relaxed [&_h1]:text-2xl [&_h1]:font-semibold [&_h1]:mb-3 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:border-l-2 [&_blockquote]:border-white/20 [&_blockquote]:pl-3 [&_blockquote]:text-white/80 [&_code]:bg-white/10 [&_code]:px-1 [&_code]:rounded"
+        ></div>
+      </section>
     </main>
 
     <script src="/app.js"></script>
-</body>
-
+  </body>
 </html>
