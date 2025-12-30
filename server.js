@@ -19,11 +19,63 @@ const key = process.env.key;
 if (!key) throw new Error('missing env var "key" (create .env with: key=YOUR_GEMINI_KEY)');
 
 const ai = new GoogleGenAI({ apiKey: key });
-
-// model is public → hardcode it
 const MODEL = "gemini-3-pro-preview";
-
 const GEN_TIMEOUT_MS = 25000;
+
+const AI_PROMPT_PROCESSING = `
+You are writing lyrics for a fictional persona named "jaydes".
+The ONLY canon is the provided reference text. Do not assume any outside identity, biography, music scene, era, or real person.
+
+Goal: produce lyrics that read like the same author as the reference.
+Not "similar vibes" — lock to the reference's actual habits.
+
+How to use the reference (process before writing):
+A) Build a private "voice fingerprint" from the reference:
+   1) Lexicon map:
+      - list the common words, filler words, slang, and connective phrases that keep repeating
+      - list the kinds of words that almost never appear (overly poetic, academic, corporate, motivational)
+   2) Sentence shape:
+      - fragments vs full sentences
+      - how often it uses "i/you/we", tense, and pronoun switching
+      - how direct or indirect the statements are
+   3) Punctuation + casing:
+      - capitalization habits
+      - typical punctuation (or lack of it)
+      - whether lines end clean or cut off
+   4) Cadence + line mechanics:
+      - typical line length range
+      - how often it stacks short lines vs long run-ons
+      - how it places emphasis words (end of line, mid-line, repeats)
+   5) Rhyme + sound:
+      - end rhyme frequency, internal rhyme frequency
+      - does it prefer perfect rhymes, near rhymes, repeated vowels, repeated consonants
+      - how often it repeats the same end sound for multiple lines
+   6) Motifs + worldview:
+      - recurring objects, environments, emotions, relationship dynamics
+      - how it handles flex/vulnerability, anger/softness, distance/closeness
+      - what it avoids talking about
+
+B) While drafting, run a strict "would jaydes say this?" filter:
+   - every line must feel inevitable in this voice
+   - if a word/phrase feels generic or "writer-y", replace it with a reference-style alternative
+   - avoid metaphors and phrases that don't match the reference's normal imagery
+   - avoid cleverness that isn't present in the reference
+
+C) Avoid off-voice contamination:
+   - do not introduce new catchphrases, new ad-lib style, or new comedic tone unless the reference already has it
+   - do not add brand names, places, pop culture, or trending phrases unless the reference already uses that category of detail
+   - do not suddenly become cleaner, more polished, or more complex than the reference
+
+D) Originality constraint:
+   - do NOT copy full lines from the reference
+   - you may reuse micro-patterns (1–3 words) only if they are clearly common speech habits in the reference
+   - everything should be newly written, but structurally indistinguishable from the reference author
+
+E) Output rules:
+   - output ONLY lyrics
+   - no titles, no labels, no notes, no explanations
+   - clean line breaks
+`.trim();
 
 // ===== reference =====
 function getReferenceText() {
@@ -43,6 +95,8 @@ const safeStr = (v, maxLen, d = "") => {
 
 function baseBlock() {
     return `
+${AI_PROMPT_PROCESSING}
+
 YOU ARE "howtojaydes".
 ghost writer trained on jaydes
 
@@ -55,15 +109,15 @@ function buildMakePrompt({ ref, prompt }) {
     return `
 ${baseBlock()}
 
-Reference:
+REFERENCE:
 ---
 ${ref || ""}
 ---
 
-Prompt:
+USER PROMPT:
 ${prompt}
 
-Write.
+Write now.
 `.trim();
 }
 
@@ -71,19 +125,20 @@ function buildRewritePrompt({ ref, lyrics, prompt }) {
     return `
 ${baseBlock()}
 
-Reference:
+REFERENCE:
 ---
 ${ref || ""}
 ---
 
-Lyrics:
+USER LYRICS:
 ---
 ${lyrics}
 ---
 
-${prompt ? `Prompt:\n${prompt}\n` : ""}
+${prompt ? `USER PROMPT:\n${prompt}\n` : ""}
 
-Rewrite.
+Rewrite in jaydes' exact voice while keeping the same meaning and structure.
+Output only rewritten lyrics.
 `.trim();
 }
 
