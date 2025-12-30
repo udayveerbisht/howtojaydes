@@ -100,29 +100,24 @@ D) Originality constraint:
    - do NOT copy full lines from the filtered reference
    - you may reuse micro-patterns (1–3 words) only if they are clearly common speech habits in the filtered reference
    - everything should be newly written, but structurally indistinguishable from the filtered reference author
-
-E) Output rules:
-   - output ONLY lyrics
-   - no titles, no labels, no notes, no explanations
-   - clean line breaks
 `.trim();
 
 function getReferenceText() {
-  try {
-    return fs.readFileSync(path.join(__dirname, "lyrics.txt"), "utf8").slice(0, 14000);
-  } catch (e) {
-    console.error("failed to read lyrics.txt:", e?.message || e);
-    return "";
-  }
+    try {
+        return fs.readFileSync(path.join(__dirname, "lyrics.txt"), "utf8").slice(0, 14000);
+    } catch (e) {
+        console.error("failed to read lyrics.txt:", e?.message || e);
+        return "";
+    }
 }
 
 const safeStr = (v, maxLen, d = "") => {
-  const s = typeof v === "string" ? v : d;
-  return s.slice(0, maxLen);
+    const s = typeof v === "string" ? v : d;
+    return s.slice(0, maxLen);
 };
 
-function baseBlock() {
-  return `
+function baseBlockLyricsOnly() {
+    return `
 ${REFERENCE_CLEANING_RULES}
 
 ${AI_PROMPT_PROCESSING}
@@ -135,9 +130,23 @@ No titles. No explanations.
 `.trim();
 }
 
+function baseBlockMarkdown() {
+    return `
+${REFERENCE_CLEANING_RULES}
+
+${AI_PROMPT_PROCESSING}
+
+YOU ARE "howtojaydes".
+coach + ghost writer trained on jaydes
+
+Output Markdown only.
+No extra wrapper text.
+`.trim();
+}
+
 function buildMakePrompt({ ref, prompt }) {
-  return `
-${baseBlock()}
+    return `
+${baseBlockLyricsOnly()}
 
 REFERENCE (noisy; filter it first):
 ---
@@ -152,8 +161,8 @@ Write now.
 }
 
 function buildRewritePrompt({ ref, lyrics, prompt }) {
-  return `
-${baseBlock()}
+    return `
+${baseBlockLyricsOnly()}
 
 REFERENCE (noisy; filter it first):
 ---
@@ -172,114 +181,177 @@ Output only rewritten lyrics.
 `.trim();
 }
 
+function buildUseLyricsPrompt({ ref, lyrics, prompt }) {
+    return `
+${baseBlockMarkdown()}
+
+REFERENCE (noisy; filter it first):
+---
+${ref || ""}
+---
+
+USER LYRICS (these are the lyrics to perform):
+---
+${lyrics}
+---
+
+${prompt ? `USER PROMPT:\n${prompt}\n` : ""}
+
+Task:
+1) Name the song (invent a title that fits the lyrics and the filtered reference voice).
+2) Teach EXACTLY how to flow and perform these lyrics like the reference voice: delivery, cadence, pockets, emphasis, breaths, ad-libs, dynamics.
+
+Output rules:
+- Output Markdown only.
+- Include a top-level title as: # <Song Title>
+- Then include these sections (in this order):
+  ## One-line concept
+  ## Tempo and pocket
+  ## Structure map
+  ## Line-by-line flow coach
+  ## Ad-libs and doubles
+  ## Breath and stamina plan
+  ## Delivery notes
+- In "Line-by-line flow coach", quote each line (as a blockquote) and directly under it give very detailed instructions:
+  - syllable stress map (use CAPS for stressed words)
+  - where to pause (use |)
+  - where to drag/clip syllables
+  - where to pitch up/down
+  - where to whisper or bite consonants
+- Do not add new lyrics. Only coaching + title.
+`.trim();
+}
+
 async function generateText({ prompt, temperature = 0.9, topP = 0.95 }) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), GEN_TIMEOUT_MS);
-  try {
-    const out = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      generationConfig: { temperature, topP },
-      signal: controller.signal,
-    });
-    return (out?.text || "").trim();
-  } finally {
-    clearTimeout(timer);
-  }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), GEN_TIMEOUT_MS);
+    try {
+        const out = await ai.models.generateContent({
+            model: MODEL,
+            contents: prompt,
+            generationConfig: { temperature, topP },
+            signal: controller.signal,
+        });
+        return (out?.text || "").trim();
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 app.use("/api", (req, res, next) => {
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  next();
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    next();
 });
 
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, error: "rate limited" },
+    windowMs: 60 * 1000,
+    limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { ok: false, error: "rate limited" },
 });
 app.use("/api", apiLimiter);
 
 const genLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { ok: false, error: "rate limited" },
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { ok: false, error: "rate limited" },
 });
 
 app.get("/api/ref", (req, res) => {
-  const ref = getReferenceText();
-  res.json({ ok: true, chars: ref.length, preview: ref.slice(0, 1200) });
+    const ref = getReferenceText();
+    res.json({ ok: true, chars: ref.length, preview: ref.slice(0, 1200) });
 });
 
 app.all("/api/gen", (req, res, next) => {
-  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "use POST /api/gen" });
-  next();
+    if (req.method !== "POST") return res.status(405).json({ ok: false, error: "use POST /api/gen" });
+    next();
 });
 
 app.all("/api/rewrite", (req, res, next) => {
-  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "use POST /api/rewrite" });
-  next();
+    if (req.method !== "POST") return res.status(405).json({ ok: false, error: "use POST /api/rewrite" });
+    next();
+});
+
+app.all("/api/use", (req, res, next) => {
+    if (req.method !== "POST") return res.status(405).json({ ok: false, error: "use POST /api/use" });
+    next();
 });
 
 app.post("/api/gen", genLimiter, async (req, res) => {
-  try {
-    const body = req.body || {};
-    const promptIn = safeStr(body.prompt, 2000, "").trim();
-    if (!promptIn) return res.status(400).json({ ok: false, error: "missing prompt" });
+    try {
+        const body = req.body || {};
+        const promptIn = safeStr(body.prompt, 2000, "").trim();
+        if (!promptIn) return res.status(400).json({ ok: false, error: "missing prompt" });
 
-    const ref = getReferenceText();
-    if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
+        const ref = getReferenceText();
+        if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
 
-    const prompt = buildMakePrompt({ ref, prompt: promptIn });
-    const txt = await generateText({ prompt, temperature: 0.95, topP: 0.95 });
+        const prompt = buildMakePrompt({ ref, prompt: promptIn });
+        const txt = await generateText({ prompt, temperature: 0.95, topP: 0.95 });
 
-    const out = (txt || "").trim();
-    if (!out) return res.status(502).json({ ok: false, error: "empty response" });
+        const out = (txt || "").trim();
+        if (!out) return res.status(502).json({ ok: false, error: "empty response" });
 
-    res.json({ ok: true, lyrics: out });
-  } catch (e) {
-    const msg = String(e?.message || e);
-    const isAbort = msg.toLowerCase().includes("abort");
-    console.error("/api/gen failed:", msg);
-    res.status(isAbort ? 504 : 502).json({
-      ok: false,
-      error: isAbort ? "timed out" : "failed",
-      details: msg,
-    });
-  }
+        res.json({ ok: true, lyrics: out });
+    } catch (e) {
+        const msg = String(e?.message || e);
+        const isAbort = msg.toLowerCase().includes("abort");
+        console.error("/api/gen failed:", msg);
+        res.status(isAbort ? 504 : 502).json({ ok: false, error: isAbort ? "timed out" : "failed", details: msg });
+    }
 });
 
 app.post("/api/rewrite", genLimiter, async (req, res) => {
-  try {
-    const body = req.body || {};
-    const lyrics = safeStr(body.lyrics, 9000, "").trim();
-    const promptIn = safeStr(body.prompt, 2000, "").trim();
-    if (!lyrics) return res.status(400).json({ ok: false, error: "missing lyrics" });
+    try {
+        const body = req.body || {};
+        const lyrics = safeStr(body.lyrics, 9000, "").trim();
+        const promptIn = safeStr(body.prompt, 2000, "").trim();
+        if (!lyrics) return res.status(400).json({ ok: false, error: "missing lyrics" });
 
-    const ref = getReferenceText();
-    if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
+        const ref = getReferenceText();
+        if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
 
-    const prompt = buildRewritePrompt({ ref, lyrics, prompt: promptIn });
-    const txt = await generateText({ prompt, temperature: 0.8, topP: 0.95 });
+        const prompt = buildRewritePrompt({ ref, lyrics, prompt: promptIn });
+        const txt = await generateText({ prompt, temperature: 0.8, topP: 0.95 });
 
-    const out = (txt || "").trim();
-    if (!out) return res.status(502).json({ ok: false, error: "empty response" });
+        const out = (txt || "").trim();
+        if (!out) return res.status(502).json({ ok: false, error: "empty response" });
 
-    res.json({ ok: true, lyrics: out });
-  } catch (e) {
-    const msg = String(e?.message || e);
-    const isAbort = msg.toLowerCase().includes("abort");
-    console.error("/api/rewrite failed:", msg);
-    res.status(isAbort ? 504 : 502).json({
-      ok: false,
-      error: isAbort ? "timed out" : "failed",
-      details: msg,
-    });
-  }
+        res.json({ ok: true, lyrics: out });
+    } catch (e) {
+        const msg = String(e?.message || e);
+        const isAbort = msg.toLowerCase().includes("abort");
+        console.error("/api/rewrite failed:", msg);
+        res.status(isAbort ? 504 : 502).json({ ok: false, error: isAbort ? "timed out" : "failed", details: msg });
+    }
+});
+
+app.post("/api/use", genLimiter, async (req, res) => {
+    try {
+        const body = req.body || {};
+        const lyrics = safeStr(body.lyrics, 9000, "").trim();
+        const promptIn = safeStr(body.prompt, 2000, "").trim();
+        if (!lyrics) return res.status(400).json({ ok: false, error: "missing lyrics" });
+
+        const ref = getReferenceText();
+        if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
+
+        const prompt = buildUseLyricsPrompt({ ref, lyrics, prompt: promptIn });
+        const txt = await generateText({ prompt, temperature: 0.7, topP: 0.9 });
+
+        const out = (txt || "").trim();
+        if (!out) return res.status(502).json({ ok: false, error: "empty response" });
+
+        res.json({ ok: true, markdown: out });
+    } catch (e) {
+        const msg = String(e?.message || e);
+        const isAbort = msg.toLowerCase().includes("abort");
+        console.error("/api/use failed:", msg);
+        res.status(isAbort ? 504 : 502).json({ ok: false, error: isAbort ? "timed out" : "failed", details: msg });
+    }
 });
 
 app.use("/api", (req, res) => res.status(404).json({ ok: false, error: "not found" }));
