@@ -116,65 +116,88 @@ const safeStr = (v, maxLen, d = "") => {
   return s.slice(0, maxLen);
 };
 
-function baseBlockLyricsOnly() {
-  return `
-YOU ARE "howtojaydes".
+const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+const safeInt = (v, d = 100) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : d;
+};
 
-TOP PRIORITY RULE (NON-NEGOTIABLE):
+function creativityProfile(creativity) {
+  const c = clamp(safeInt(creativity, 100), 0, 100);
+
+  // 100 = strict reference-only words (prompt-only)
+  // 0 = allow extra words for creativity/options
+  const strict = c >= 85;
+
+  // temps: strict lower, creative higher
+  const temperature = strict ? 0.35 : 0.65 + (1 - c / 100) * 0.55; // ~0.65..1.2
+  const topP = strict ? 0.9 : 0.92 + (1 - c / 100) * 0.06;        // ~0.92..0.98
+
+  // prompt policy text
+  const vocabPolicy = strict
+    ? `
+VOCAB MODE: 100% STRICT (reference-only)
 - You may ONLY output words that appear in the FILTERED REFERENCE text.
 - If a word is not present in the filtered reference, you MUST NOT use it.
 - Do NOT invent ANY new nouns, verbs, adjectives, slang, names, places, brands, or filler.
-- If you are unsure whether a word appears in the filtered reference, DO NOT use it.
-- Prefer repeating existing reference words over introducing anything new.
-- Punctuation is allowed. Line breaks are allowed.
-- You may repeat letters ONLY if that exact repeated-letter form appears in the reference.
+- If unsure whether a word appears in the filtered reference, DO NOT use it.
+- STRICT SELF-CHECK: verify every word appears in the filtered reference.
+- If you cannot satisfy, output exactly: ...
+`.trim()
+    : `
+VOCAB MODE: ${c}% (jaydes vocab + controlled expansion)
+- Strongly prefer words and phrasing from the filtered reference.
+- You MAY add new words ONLY when needed for meaning or freshness.
+- Added words MUST be "similar" to reference lexicon (same register, same vibe).
+- No brand names, no real people, no places, no meta talk, no web/UI junk.
+- Keep new-word usage LOW: at most ~${Math.max(6, Math.round((100 - c) / 6))}% of total words.
+- If you drift off-voice, rewrite tighter to reference habits.
+`.trim();
 
-STRICT SELF-CHECK (DO THIS BEFORE FINAL OUTPUT):
-1) Draft privately.
-2) Run a final pass: for EVERY word in your draft, confirm it exists verbatim somewhere in the filtered reference.
-3) If ANY word fails, rewrite until ALL words pass.
-4) If you cannot satisfy the constraint, output exactly: ...
+  return { c, strict, temperature: clamp(temperature, 0.2, 1.3), topP: clamp(topP, 0.7, 0.99), vocabPolicy };
+}
+
+function baseBlockLyricsOnly(creativity) {
+  const prof = creativityProfile(creativity);
+  return `
+YOU ARE "howtojaydes".
+
+CREATIVITY SLIDER: ${prof.c}/100
+
+${prof.vocabPolicy}
 
 ${REFERENCE_CLEANING_RULES}
 
 ${AI_PROMPT_PROCESSING}
 
-Output only lyrics.
-No titles. No explanations.
+OUTPUT RULES:
+- Output only lyrics.
+- No titles. No explanations.
 `.trim();
 }
 
-function baseBlockMarkdown() {
+function baseBlockMarkdown(creativity) {
+  const prof = creativityProfile(creativity);
   return `
 YOU ARE "howtojaydes".
 
-TOP PRIORITY RULE (NON-NEGOTIABLE):
-- You may ONLY output words that appear in the FILTERED REFERENCE text.
-- If a word is not present in the filtered reference, you MUST NOT use it.
-- Do NOT invent ANY new nouns, verbs, adjectives, slang, names, places, brands, or filler.
-- If you are unsure whether a word appears in the filtered reference, DO NOT use it.
-- Prefer repeating existing reference words over introducing anything new.
-- Punctuation is allowed. Line breaks are allowed.
-- You may repeat letters ONLY if that exact repeated-letter form appears in the reference.
+CREATIVITY SLIDER: ${prof.c}/100
 
-STRICT SELF-CHECK (DO THIS BEFORE FINAL OUTPUT):
-1) Draft privately.
-2) Run a final pass: for EVERY word in your draft, confirm it exists verbatim somewhere in the filtered reference.
-3) If ANY word fails, rewrite until ALL words pass.
-4) If you cannot satisfy the constraint, output exactly: ...
+${prof.vocabPolicy}
 
 ${REFERENCE_CLEANING_RULES}
 
 ${AI_PROMPT_PROCESSING}
 
-Output Markdown only.
-No extra wrapper text.
+OUTPUT RULES:
+- Output Markdown only.
+- No extra wrapper text.
 `.trim();
 }
 
-function buildMakePrompt({ ref, prompt }) {
+function buildMakePrompt({ ref, prompt, creativity }) {
   return `
-${baseBlockLyricsOnly()}
+${baseBlockLyricsOnly(creativity)}
 
 REFERENCE (noisy; filter it first):
 ---
@@ -184,17 +207,14 @@ ${ref || ""}
 USER PROMPT:
 ${prompt}
 
-FINAL REMINDER:
-Output MUST use ONLY words found in the filtered reference.
-If you cannot, output exactly: ...
-
 Write now.
 `.trim();
 }
 
-function buildRewritePrompt({ ref, lyrics, prompt }) {
+function buildRewritePrompt({ ref, lyrics, prompt, creativity }) {
+  const prof = creativityProfile(creativity);
   return `
-${baseBlockLyricsOnly()}
+${baseBlockLyricsOnly(creativity)}
 
 REFERENCE (noisy; filter it first):
 ---
@@ -211,19 +231,19 @@ ${prompt ? `USER PROMPT:\n${prompt}\n` : ""}
 TASK:
 Rewrite the user lyrics in jaydes' exact voice while keeping the SAME meaning and SAME structure.
 
-CRITICAL CONSTRAINT:
-- You may ONLY use words that appear in the filtered reference.
-- Do NOT introduce ANY new words.
-- If ANY word you want to use is not in the filtered reference, replace it with an allowed word.
-- If you cannot satisfy this constraint, output exactly: ...
+FINAL CHECK:
+- Respect CREATIVITY SLIDER: ${prof.c}/100
+- Stay tightly in the dominant voice fingerprint from the filtered reference.
+- Do not add titles or explanations.
 
 Output only rewritten lyrics.
 `.trim();
 }
 
-function buildUseLyricsPrompt({ ref, lyrics, prompt }) {
+function buildUseLyricsPrompt({ ref, lyrics, prompt, creativity }) {
+  const prof = creativityProfile(creativity);
   return `
-${baseBlockMarkdown()}
+${baseBlockMarkdown(creativity)}
 
 REFERENCE (noisy; filter it first):
 ---
@@ -238,13 +258,12 @@ ${lyrics}
 ${prompt ? `USER PROMPT:\n${prompt}\n` : ""}
 
 TASK:
-1) Name the song (invent a title that fits the lyrics AND uses ONLY words found in the filtered reference).
+1) Name the song (title should match the slider rules; if strict, title must use only reference words).
 2) Teach EXACTLY how to flow and perform these lyrics like the reference voice: delivery, cadence, pockets, emphasis, breaths, ad-libs, dynamics.
 
-CRITICAL CONSTRAINT:
-- Your coaching MUST use ONLY words found in the filtered reference.
-- This includes the TITLE and every instruction word.
-- If you cannot coach without new words, output exactly: ...
+FINAL CHECK:
+- Respect CREATIVITY SLIDER: ${prof.c}/100
+- No new lyrics. Only coaching + title.
 
 Output rules:
 - Output Markdown only.
@@ -257,8 +276,12 @@ Output rules:
   ## Ad-libs and doubles
   ## Breath and stamina plan
   ## Delivery notes
-- In "Line-by-line flow coach", quote each line (as a blockquote) and directly under it give instructions.
-- Do not add new lyrics. Only coaching + title.
+- In "Line-by-line flow coach", quote each line (as a blockquote) and directly under it give instructions:
+  - syllable stress map (use CAPS for stressed words)
+  - where to pause (use |)
+  - where to drag/clip syllables
+  - where to pitch up/down
+  - where to whisper or bite consonants
 `.trim();
 }
 
@@ -324,18 +347,20 @@ app.post("/api/gen", genLimiter, async (req, res) => {
   try {
     const body = req.body || {};
     const promptIn = safeStr(body.prompt, 2000, "").trim();
+    const creativity = clamp(safeInt(body.creativity, 100), 0, 100);
     if (!promptIn) return res.status(400).json({ ok: false, error: "missing prompt" });
 
     const ref = getReferenceText();
     if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
 
-    const prompt = buildMakePrompt({ ref, prompt: promptIn });
-    const txt = await generateText({ prompt, temperature: 0.4, topP: 0.9 });
+    const prof = creativityProfile(creativity);
+    const prompt = buildMakePrompt({ ref, prompt: promptIn, creativity });
+    const txt = await generateText({ prompt, temperature: prof.temperature, topP: prof.topP });
 
     const out = (txt || "").trim();
     if (!out) return res.status(502).json({ ok: false, error: "empty response" });
 
-    res.json({ ok: true, lyrics: out });
+    res.json({ ok: true, lyrics: out, creativity });
   } catch (e) {
     const msg = String(e?.message || e);
     const isAbort = msg.toLowerCase().includes("abort");
@@ -349,18 +374,20 @@ app.post("/api/rewrite", genLimiter, async (req, res) => {
     const body = req.body || {};
     const lyrics = safeStr(body.lyrics, 9000, "").trim();
     const promptIn = safeStr(body.prompt, 2000, "").trim();
+    const creativity = clamp(safeInt(body.creativity, 100), 0, 100);
     if (!lyrics) return res.status(400).json({ ok: false, error: "missing lyrics" });
 
     const ref = getReferenceText();
     if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
 
-    const prompt = buildRewritePrompt({ ref, lyrics, prompt: promptIn });
-    const txt = await generateText({ prompt, temperature: 0.35, topP: 0.9 });
+    const prof = creativityProfile(creativity);
+    const prompt = buildRewritePrompt({ ref, lyrics, prompt: promptIn, creativity });
+    const txt = await generateText({ prompt, temperature: prof.temperature, topP: prof.topP });
 
     const out = (txt || "").trim();
     if (!out) return res.status(502).json({ ok: false, error: "empty response" });
 
-    res.json({ ok: true, lyrics: out });
+    res.json({ ok: true, lyrics: out, creativity });
   } catch (e) {
     const msg = String(e?.message || e);
     const isAbort = msg.toLowerCase().includes("abort");
@@ -374,18 +401,20 @@ app.post("/api/use", genLimiter, async (req, res) => {
     const body = req.body || {};
     const lyrics = safeStr(body.lyrics, 9000, "").trim();
     const promptIn = safeStr(body.prompt, 2000, "").trim();
+    const creativity = clamp(safeInt(body.creativity, 100), 0, 100);
     if (!lyrics) return res.status(400).json({ ok: false, error: "missing lyrics" });
 
     const ref = getReferenceText();
     if (!ref) return res.status(500).json({ ok: false, error: "missing lyrics.txt" });
 
-    const prompt = buildUseLyricsPrompt({ ref, lyrics, prompt: promptIn });
-    const txt = await generateText({ prompt, temperature: 0.3, topP: 0.85 });
+    const prof = creativityProfile(creativity);
+    const prompt = buildUseLyricsPrompt({ ref, lyrics, prompt: promptIn, creativity });
+    const txt = await generateText({ prompt, temperature: prof.temperature, topP: prof.topP });
 
     const out = (txt || "").trim();
     if (!out) return res.status(502).json({ ok: false, error: "empty response" });
 
-    res.json({ ok: true, markdown: out });
+    res.json({ ok: true, markdown: out, creativity });
   } catch (e) {
     const msg = String(e?.message || e);
     const isAbort = msg.toLowerCase().includes("abort");
